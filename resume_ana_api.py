@@ -1,119 +1,3 @@
-# import spacy
-# from fastapi import FastAPI, File, UploadFile, Form
-# from fastapi.responses import JSONResponse
-# from pdfminer.high_level import extract_text
-# from io import BytesIO
-# import re
-
-# app = FastAPI()
-
-# nlp = spacy.load("en_core_web_md")
-
-# def extract_text_from_pdf(pdf_path):
-#     return extract_text(pdf_path)
-
-# def normalize_skill(skill):
-#     return re.sub(r'\d+', '', skill).strip().lower()
-
-# def find_skills_in_text(text, skills_list):
-#     doc = nlp(text.lower())
-#     skills_found = [skill for skill in skills_list if normalize_skill(skill) in doc.text]
-#     return skills_found
-
-# def extract_contact_info(text):
-#     email_pattern = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
-#     phone_pattern = re.compile(r'\+92-\d{10}|\+92\d{9}|\+03\d{2}-\d{7}|03\d{9}|\+92\s?\d{10}')
-#     email = email_pattern.findall(text)
-#     phone = phone_pattern.findall(text)
-
-#     lines = text.split('\n')
-#     name = None
-#     if lines:
-#         first_line = lines[0].strip()
-#         if len(lines) > 1:
-#             second_line_words = lines[1].strip().split()[:2]
-#             if "ENGINEER" not in second_line_words:
-#                 name = f"{first_line} {' '.join(second_line_words)}".strip()
-#             else:
-#                 name = first_line
-    
-#     email = email[0] if email else None
-#     phone = phone[0] if phone else None
-
-#     return name, email, phone
-
-# @app.post("/uploadfile")
-# async def create_upload_file(skills_required: str = Form(...), resume_files: list[UploadFile] = File(...)):
-#     responses = []
-    
-#     try:
-#         # Split skills_required by commas and then by slashes
-#         skills_list = [skill.strip() for skill_with_slash in skills_required.split(',') for skill in skill_with_slash.split('/')]
-#         lower_skill_list = [normalize_skill(s) for s in skills_list]
-#         skills = set(lower_skill_list)
-
-#         for resume_file in resume_files:
-#             resume_contents = await resume_file.read()
-#             resume_pdf = BytesIO(resume_contents)
-#             text = extract_text_from_pdf(resume_pdf)
-
-#             skills_extracted = set(find_skills_in_text(text, skills))
-#             skills_missing = skills - skills_extracted  # Calculate missing skills
-#             name, email, phone = extract_contact_info(text)
-
-#             if skills_extracted:
-#                 skill_rate = round((len(skills_extracted) / len(skills)) * 100, 2)
-#                 response_data = {
-#                     "success": True,
-#                     "responseMessage": "Skills Matched",
-#                     "responseCode": "200",
-#                     "data": {
-#                         "skills_required": skills_required,
-#                         "confidence": f'{skill_rate}%',
-#                         "skills_extracted": list(skills_extracted),
-#                         "skills_missing": list(skills_missing),  # Include missing skills
-#                         "name": name,
-#                         "email": email,
-#                         "phone": phone if phone else "no contact info"
-#                     }
-#                 }
-#             elif email is None and phone is None:
-#                 response_data = {
-#                     "success": False,
-#                     "responseMessage": "No contact info",
-#                     "responseCode": "404",
-#                     "data": {}
-#                 }
-#             else:
-#                 response_data = {
-#                     "success": True,
-#                     "responseMessage": "Skill Not Matched",
-#                     "responseCode": "200",
-#                     "data": {
-#                         "skills_required": skills_required,
-#                         "confidence": "0.0%",
-#                         "skills_extracted": list(skills_extracted),
-#                         "skills_missing": list(skills_missing),  # Include missing skills
-#                         "name": name,
-#                         "email": email,
-#                         "phone": phone if phone else "no contact info"
-#                     }
-#                 }
-
-#             responses.append(response_data)
-    
-#     except Exception as e:
-#         response_data = {
-#             "success": False,
-#             "responseMessage": f"Error: {str(e)}",
-#             "responseCode": "500",
-#             "data": {}
-#         }
-#         responses.append(response_data)
-
-#     return JSONResponse(content={"results": responses})
-
-
 import spacy
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
@@ -121,6 +5,7 @@ from pdfminer.high_level import extract_text
 from io import BytesIO
 from difflib import SequenceMatcher
 import re
+import os
 
 
 app = FastAPI()
@@ -147,49 +32,6 @@ def find_skills_in_text(text, skills_list):
     skills_found = [skill for skill in skills_list if normalize_skill(skill) in doc.text]
     return skills_found
 
-# def extract_contact_info(text):
-#     # Updated regex for email to handle newlines and whitespaces between email parts
-#     email_pattern = re.compile(r'\b[A-Za-z0-9._%+-]+(?:@|\s*@\s*)[A-Za-z0-9.-]+(?:\.|\s*\.\s*)[A-Za-z]{2,}\b', re.MULTILINE)
-#     # phone_pattern = re.compile(r'(?:\+92|0)\d{10}')
-#     # phone_pattern = re.compile(r'(\+\d{2}\s?3\d{2}[\s.-]?\d{7}|\b03\d{2}[\s.-]?\d{7}\b)')
-#     # phone_pattern = re.compile(r'(\+\d{1,3}[\s\(\)\.-]*3\d{2}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}|\b03\d{2}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}\b)')
-#     # phone_pattern = re.compile(r'(\+\d{1,3}[\s\(\)\.-]*\d{1,3}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}|\b03\d{2}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}\b)')
-#     phone_pattern = re.compile(r'(\+\d{1,3}[\s\(\)\.-]*\d{1,3}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}|\b03\d{2}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}\b|\b\d{3}[\s\(\)\.-]*\d{3}[\s\(\)\.-]*\d{4}\b)')
-
-#     # Extract emails and phone numbers
-#     email_matches = email_pattern.findall(text)
-#     phone_matches = phone_pattern.findall(text)
-
-#     # Join email parts that may be split across lines
-#     email_matches = [re.sub(r'\s+', '', email) for email in email_matches]
-    
-# # Check the number of emails before filtering
-#     if len(email_matches) > 1:
-#         # Filter emails by specific domains only if more than one email is found
-#         valid_domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com']
-#         filtered_emails = [email for email in email_matches if any(domain in email for domain in valid_domains)]
-        
-#         # If filtered emails are found, select the first one, otherwise set email to None
-#         email = filtered_emails[0] if filtered_emails else None
-#     else:
-#         # If there's only one email, return it without filtering
-#         email = email_matches[0] if email_matches else None
-    
-#     phone = phone_matches[0] if phone_matches else None
-
-#     # Process phone number to remove all non-numeric characters
-#     if phone:
-#         phone = re.sub(r'\D', '', phone)
-
-#     # Extract name: taking the first line as the name and cleaning it
-#     lines = text.split('\n')
-#     name = None
-#     if lines:
-#         first_line = lines[0].strip()
-#         name = first_line
-#         name = re.sub(rf"{re.escape(email) if email else ''}|{re.escape(phone) if phone else ''}", "", name).strip()
-
-#     return name, email, phone
 
 def similarity(a, b):
     """Calculate the similarity between two strings."""
@@ -268,18 +110,39 @@ def extract_contact_info(text):
         # Default to the first line name if no SpaCy names found
         name = first_line_name
 
-    return name, email, phone   
+    return name, email, phone 
+
+
+# Define the path to the reference ID file
+ref_id_file_path = "reference_id.txt"
+
+# Function to read the last reference ID
+def read_last_ref_id():
+    if os.path.exists(ref_id_file_path):
+        with open(ref_id_file_path, "r") as file:
+            return int(file.read().strip())
+    return 1  # Default to 1 if the file does not exist
+
+# Function to save the last reference ID
+def save_last_ref_id(ref_id):
+    with open(ref_id_file_path, "w") as file:
+        file.write(str(ref_id))
+
+# Initialize the global reference ID counter
+reference_id_counter = read_last_ref_id()
 
 @app.post("/uploadfile")
 async def create_upload_file(skills_required: str = Form(...), resume_files: list[UploadFile] = File(...)):
+    global reference_id_counter
     responses = []
 
-    try:
-        skills_list = [skill.strip() for skill_with_slash in skills_required.split(',') for skill in skill_with_slash.split('/')]
-        lower_skill_list = [normalize_skill(s) for s in skills_list]
-        skills = set(lower_skill_list)
+    skills_list = [skill.strip() for skill_with_slash in skills_required.split(',') for skill in skill_with_slash.split('/')]
+    lower_skill_list = [normalize_skill(s) for s in skills_list]
+    skills = set(lower_skill_list)
 
-        for resume_file in resume_files:
+    for resume_file in resume_files:
+        ref_id = reference_id_counter  # Use the current reference ID for this file
+        try:
             resume_contents = await resume_file.read()
             resume_pdf = BytesIO(resume_contents)
             text = extract_text_from_pdf(resume_pdf)
@@ -290,38 +153,112 @@ async def create_upload_file(skills_required: str = Form(...), resume_files: lis
 
             if email is None and phone is None:
                 response_data = {
-                    "success": False,
-                    "responseMessage": "No valid contact info",
-                    "responseCode": "404",
-                    "data": {}
+                    "matched": False,
+                    "message": "No valid contact info",
+                    "ref_id": str(ref_id),
+                    "file_name": resume_file.filename,
+                    "skills_required": None,
+                    "confidence": None,
+                    "skills_extracted": [],
+                    "skills_missing": [],
+                    "name": None,
+                    "email": None,
+                    "phone": None
                 }
             else:
                 skill_rate = round((len(skills_extracted) / len(skills)) * 100, 2)
                 response_data = {
-                    "success": True,
-                    "responseMessage": "Skills Matched",
-                    "responseCode": "200",
-                    "data": {
-                        "skills_required": skills_required,
-                        "confidence": f'{skill_rate}%',
-                        "skills_extracted": list(skills_extracted),
-                        "skills_missing": list(skills_missing),
-                        "name": name,
-                        "email": email if email else "no contact info",
-                        "phone": int(phone) if phone else "no contact info",
-                        # "text": text if text else "no text"
-                    }
+                    "matched": True,
+                    "message": "Skills Matched",
+                    "ref_id": str(ref_id),
+                    "file_name": resume_file.filename,
+                    "skills_required": skills_required,
+                    "confidence": f'{skill_rate}%',
+                    "skills_extracted": list(skills_extracted),
+                    "skills_missing": list(skills_missing),
+                    "name": name,
+                    "email": email if email else "no contact info",
+                    "phone": phone if phone else "no contact info"
                 }
 
             responses.append(response_data)
 
-    except Exception as e:
-        response_data = {
-            "success": False,
-            "responseMessage": f"Error: {str(e)}",
-            "responseCode": "500",
-            "data": {}
-        }
-        responses.append(response_data)
+        except Exception as e:
+            response_data = {
+                "matched": False,
+                "message": str(e),
+                "ref_id": str(ref_id),
+                "file_name": resume_file.filename,
+                "skills_required": None,
+                "confidence": None,
+                "skills_extracted": [],
+                "skills_missing": [],
+                "name": None,
+                "email": None,
+                "phone": None
+            }
+            responses.append(response_data)
 
-    return JSONResponse(content={"results": responses})
+        # Increment reference ID for the next file
+        reference_id_counter += 1
+        save_last_ref_id(reference_id_counter)  # Save the updated ref ID
+
+    return JSONResponse(content={"success": True, "responseMessage": "Skills Matched", "responseCode": 200, "data": responses})
+
+
+# @app.post("/uploadfile")
+# async def create_upload_file(skills_required: str = Form(...), resume_files: list[UploadFile] = File(...)):
+#     responses = []
+
+#     try:
+#         skills_list = [skill.strip() for skill_with_slash in skills_required.split(',') for skill in skill_with_slash.split('/')]
+#         lower_skill_list = [normalize_skill(s) for s in skills_list]
+#         skills = set(lower_skill_list)
+
+#         for resume_file in resume_files:
+#             resume_contents = await resume_file.read()
+#             resume_pdf = BytesIO(resume_contents)
+#             text = extract_text_from_pdf(resume_pdf)
+
+#             skills_extracted = set(find_skills_in_text(text, skills))
+#             skills_missing = skills - skills_extracted
+#             name, email, phone = extract_contact_info(text)
+
+#             if email is None and phone is None:
+#                 response_data = {
+#                     "success": False,
+#                     "responseMessage": "No valid contact info",
+#                     "responseCode": "404",
+#                     "data": {}
+#                 }
+#             else:
+#                 skill_rate = round((len(skills_extracted) / len(skills)) * 100, 2)
+#                 response_data = {
+#                     "success": True,
+#                     "responseMessage": "Skills Matched",
+#                     "responseCode": "200",
+#                     "data": {
+#                         "skills_required": skills_required,
+#                         "confidence": f'{skill_rate}%',
+#                         "skills_extracted": list(skills_extracted),
+#                         "skills_missing": list(skills_missing),
+#                         "name": name,
+#                         "email": email if email else "no contact info",
+#                         "phone": int(phone) if phone else "no contact info",
+#                         # "text": text if text else "no text"
+#                     }
+#                 }
+
+#             responses.append(response_data)
+
+#     except Exception as e:
+#         response_data = {
+#             "success": False,
+#             "responseMessage": f"Error: {str(e)}",
+#             "responseCode": "500",
+#             "data": {}
+#         }
+#         responses.append(response_data)
+
+#     return JSONResponse(content={"results": responses})
+    # return responses
